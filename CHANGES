@@ -1,0 +1,16 @@
+2017-03-20  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* view_slcurses.c:
+	clear away the stuff that slang won't ever do, leaving a skeleton that might
+	be forced to work.
+
+	* dots_slcurses.c: change order so that the rate message shows
+
+	* dots_slcurses.c: builds, sort of works
+
+	* makefile, view_slcurses.c: RCS_BASE
+
+2014-08-09  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* dots_slcurses.c: RCS_BASE
+
