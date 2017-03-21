@@ -29,7 +29,7 @@
 /*
  * Author: Thomas E. Dickey
  *
- * $Id: dots_slcurses.c,v 1.2 2017/03/20 09:29:11 tom Exp $
+ * $Id: dots_slcurses.c,v 1.3 2017/03/21 00:40:10 tom Exp $
  *
  * A simple demo of the curses interface used for comparison with termcap.
  */
@@ -93,13 +93,14 @@ main(int argc,
     double r;
     double c;
 
+    srand((unsigned) time(0));
+
+    initscr();
+
     signal(SIGINT, onsig);
     signal(SIGQUIT, onsig);
     signal(SIGTERM, onsig);
 
-    srand((unsigned) time(0));
-
-    initscr();
     if (has_colors()) {
 	start_color();
 	for (fg = 0; fg < COLORS; fg++) {
