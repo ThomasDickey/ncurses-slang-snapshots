@@ -1,3 +1,24 @@
+2017-03-21  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* view_slcurses.c: no setscrreg - works with ASCII example now
+
+	* view_slcurses.c: hacked in the color
+
+	* view_slcurses.c: compiled!
+
+	* view_slcurses.c: another missing function
+
+	* view_slcurses.c:
+	another missing function could have been done with a #define
+
+	* view_slcurses.c: quick hack to equate slang's cell-type with cchar_t
+
+	* view_slcurses.c:
+	slcurses has no bkgd either (since it assumes everyone does bce)
+
+	* view_slcurses.c: slang has no idlok - harmless
+	slang has no keyname - make quick hack
+
 2017-03-20  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* view_slcurses.c:
