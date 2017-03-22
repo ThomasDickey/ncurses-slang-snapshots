@@ -50,7 +50,7 @@
  * scroll operation worked, and the refresh() code only had to do a
  * partial repaint.
  *
- * $Id: view_slcurses.c,v 1.11 2017/03/22 21:09:48 tom Exp $
+ * $Id: view_slcursesw.c,v 1.1 2017/03/22 21:09:48 tom Exp $
  */
 
 #include <slcurses.h>

@@ -1,3 +1,11 @@
+2017-03-22  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* makefile: add view_slang
+
+	* view_slcursesw.c: RCS_BASE
+
+	* view_slcurses.c: remove some unused stuff
+
 2017-03-21  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* view_slcurses.c: no setscrreg - works with ASCII example now

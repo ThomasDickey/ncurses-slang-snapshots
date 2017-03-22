@@ -1,5 +1,6 @@
 PROGS	= \
 	dots_slcurses \
+	view_slang \
 	view_slcurses
 
 CC	= gcc-normal
