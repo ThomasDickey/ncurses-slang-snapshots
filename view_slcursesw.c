@@ -1,4 +1,5 @@
 /****************************************************************************
+ * Copyright (c) 2017 Thomas E. Dickey                                      *
  * Copyright (c) 1998-2015,2016 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -50,7 +51,7 @@
  * scroll operation worked, and the refresh() code only had to do a
  * partial repaint.
  *
- * $Id: view_slcursesw.c,v 1.1 2017/03/22 21:09:48 tom Exp $
+ * $Id: view_slcursesw.c,v 1.5 2017/04/25 23:28:48 tom Exp $
  */
 
 #include <slcurses.h>
@@ -65,9 +66,27 @@
 
 #include <time.h>
 
-#define CCHAR_T SLcurses_Cell_Type
-
 #undef CTRL			/* conflict on AIX 5.2 with <sys/ioctl.h> */
+
+/*
+ * Bear in mind that this program stores an array of characters so that it can
+ * shift left/right without distortion.  slang lacks most of the functionality
+ * needed to make that work; it is up to applications to provide this.
+ *
+ * The array has to store Unicode base-characters with their combining
+ * characters, if any.
+ *
+ * slcurses has the analogous type to curses "cchar_t", however slcurses mixes
+ * the base character with color/attributes since the base is just a chtype.
+ *
+ * It has an array of combining characters -- but those are set indirectly via
+ * the "addch" call.  There is no "setcchar" or "getcchar", nor is there any
+ * point in providing one here (see note in "add_wchstr").
+ *
+ * Alternatively there's SLsmg_Char_Type, but introducing it here would be
+ * no improvement.
+ */
+typedef SLcurses_Cell_Type cchar_t;
 
 #define UChar(c) (unsigned char)(c)
 
@@ -86,8 +105,8 @@ static int shift = 0;
 static bool try_color = FALSE;
 
 static char *fname;
-static CCHAR_T **vec_lines;
-static CCHAR_T **lptr;
+static cchar_t **vec_lines;
+static cchar_t **lptr;
 static int num_lines;
 
 static void usage(void);
@@ -115,13 +134,26 @@ usage(void)
     exit(EXIT_FAILURE);
 }
 
+#ifdef SLANG_VERSION
+
 /* MISSING */
 static void
-addchstr(CCHAR_T * s)
+add_wchstr(cchar_t * s)
 {
+    int n;
+
     while (s->main) {
-	/* slcurses has no way to specify color/attributes in addch */
-	addch(s->main);
+	/*
+	 * slcurses's "addch" is sufficiently different from curses that the
+	 * only useful part is the character:
+	 * a) only the foreground color is used, but
+	 * b) the color+video attributes are OR'd with the window attributes,
+	 * c) largely because slcurses confuses bold and reverse with color.
+	 */
+	addch(s->main & A_CHARTEXT);
+	for (n = 0; n < SLSMG_MAX_CHARS_PER_CELL; ++n) {
+	    addch(s->combining[n]);
+	}
 	++s;
     }
 }
@@ -159,7 +191,7 @@ static void
 redrawwin(WINDOW *w)
 {
     /* the touchwin() macro introduces a compiler warning, fixed here */
-    SLsmg_touch_lines((int)(w)->_begy, (w)->nrows);
+    SLsmg_touch_lines((int) (w)->_begy, (w)->nrows);
     wrefresh(w);
 }
 
@@ -174,8 +206,10 @@ setscrreg(int t, int b)
 }
 #endif
 
+#endif /* SLANG_VERSION */
+
 static int
-ch_len(CCHAR_T * src)
+ch_len(cchar_t * src)
 {
     int result = 0;
 
@@ -190,11 +224,11 @@ ch_len(CCHAR_T * src)
  * Allocate a string into an array of chtype's.  If UTF-8 mode is
  * active, translate the string accordingly.
  */
-static CCHAR_T *
+static cchar_t *
 ch_dup(char *src)
 {
     unsigned len = (unsigned) strlen(src);
-    CCHAR_T *dst = malloc(sizeof(CCHAR_T) * (len + 1));
+    cchar_t *dst = malloc(sizeof(cchar_t) * (len + 1));
     size_t j, k;
 
     for (j = k = 0; j < len; j++) {
@@ -205,10 +239,12 @@ ch_dup(char *src)
 }
 
 #ifdef __GNUC__
-static void
-finish(int)
-__attribute__((noreturn));
+#define GCC_NORETURN __attribute__((noreturn))
+#else
+#define GCC_NORETURN		/* nothing */
 #endif
+
+static void finish(int) GCC_NORETURN;
 
 static void
 finish(int sig)
@@ -222,7 +258,7 @@ show_all(const char *tag)
 {
     int i;
     char temp[BUFSIZ];
-    CCHAR_T *s;
+    cchar_t *s;
     time_t this_time;
 
     (void) tag;
@@ -247,7 +283,7 @@ show_all(const char *tag)
 	if ((s = lptr[i - 1]) != 0) {
 	    int len = ch_len(s);
 	    if (len > shift) {
-		addchstr(s + shift);
+		add_wchstr(s + shift);
 	    }
 	}
     }
@@ -264,7 +300,7 @@ main(int argc, char *argv[])
     char buf[BUFSIZ];
     int i;
     int my_delay = 0;
-    CCHAR_T **olptr;
+    cchar_t **olptr;
     int value = 0;
     bool done = FALSE;
     bool got_number = FALSE;
@@ -318,7 +354,7 @@ main(int argc, char *argv[])
     if (optind + 1 != argc)
 	usage();
 
-    if ((vec_lines = calloc(1, sizeof(CCHAR_T) * (size_t) MAXLINES + 2)) == 0)
+    if ((vec_lines = calloc(1, sizeof(cchar_t) * (size_t) MAXLINES + 2)) == 0)
 	usage();
 
     assert(vec_lines != 0);
