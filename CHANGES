@@ -1,3 +1,19 @@
+2017-04-25  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* view_slcursesw.c: repeat the point
+
+	* view_slcursesw.c: this won't be part of ncurses.
+
+	* view_slcursesw.c: amend the type, adding a comment
+
+	* view_slcursesw.c:
+	my comment about addch() was oversimplified.  It sort-of recognizes color
+	but of course has no useful color pairs since he allocates 8 bits for
+	color PLUS video attributes, and is prone to OR'ing the fields.
+	That's essentially just the 16 foreground colors - looks like it'll only
+	do background color via the other interfaces, and even still insists there
+	are 16 colors.
+
 2017-03-22  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* makefile: add view_slang
