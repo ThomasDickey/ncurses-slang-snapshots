@@ -1,3 +1,12 @@
+2017-08-20  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* cfg-slcurses: RCS_BASE
+
+	* with-slcurses:
+	add links for more headers/libraries that my configure script looks for.
+
+	* with-slcurses: RCS_BASE
+
 2017-04-25  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* view_slcursesw.c: repeat the point

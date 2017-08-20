@@ -1,0 +1,5 @@
+#!/bin/sh
+date
+clean-ncurses-examples
+#autoconf-252 || exit 1
+cfg-normal --without-pkg-config --with-screen=curses --disable-panel --disable-form --disable-menu

@@ -1,0 +1,108 @@
+#!/bin/sh
+# $Id: with-slcurses,v 1.2 2017/08/20 16:21:10 tom Exp $
+# pretend that "slcurses" is a variant of 4.3BSD curses, with a few features
+# added.
+
+failed() {
+	echo "? $*" >&2
+	exit 1
+}
+
+MYTEMP=$(mktemp -d)
+[ -z "$MYTEMP" ] && failed "mktemp"
+[ -d "$MYTEMP" ] || failed "mktemp"
+trap "cd; rm -rf $MYTEMP" 0 1 2 3 15
+
+PKGTOOL=pkg-config
+unset CPPFLAGS
+unset LIBS
+found=no
+for NAME in slang2 slang
+do
+	$PKGTOOL --exists $NAME 2>/dev/null || continue
+	CPPFLAGS="$($PKGTOOL --cflags $NAME 2>/dev/null )" 
+	LIBS="$($PKGTOOL --libs $NAME 2>/dev/null )" 
+	found=yes
+	break
+done
+[ $found = no ] && failed "could not find slang-package"
+
+case "x$LIBS" in
+x*-L*)
+	echo "found libdir"
+	libfile=
+	libroot="libslang${LIBS##*-lslang}"
+	libroot=${libroot%% *}
+	libdir="${LIBS##*-L}"
+	libdir=${libdir%% *}
+	for tail in $libdir/$libroot.*
+	do
+		if [ -f "$tail" ]
+		then
+			libfile="$tail"
+			break
+		fi
+	done
+	[ -n "$libfile" ] || failed "could not find library file in $LIBS"
+	;;
+*)
+	echo "find libdir..."
+	libdir=
+	for head in /usr/lib /usr/lib/* /usr/lib/*$(arch)*
+	do
+		[ -d "$head" ] || continue
+		for tail in $head/libslang*
+		do
+			if [ -f "$tail" ]
+			then
+				libdir="$head"
+				libfile="$tail"
+				break
+			fi
+		done
+		[ -n "$libdir" ] && break
+	done
+	[ -n "$libdir" ] || failed "cannot find library directory"
+	LIBS="-L$MYTEMP $LIBS"
+	;;
+esac
+
+for fake in curses ncurses ncursesw tinfo tinfow termcap
+do
+	ln -svf $libfile $MYTEMP/lib$fake.a
+done
+
+found=no
+for head in \
+	/usr/include \
+	/usr/include/slang* \
+	/usr/local/include \
+	/usr/local/include/slang*
+do
+	[ -d "$head" ] || continue
+	[ -f "$head/slcurses.h" ] || continue
+	for fake in curses ncurses
+	do
+		ln -svf $head/slcurses.h $MYTEMP/$fake.h
+	done
+	[ "$head" = /usr/include ] || CPPFLAGS="-I$head"
+	CPPFLAGS="-I$MYTEMP $CPPFLAGS"
+	found=yes
+	break
+done
+[ $found = yes ] || failed "cannot find slcurses.h"
+
+if [ ! -t 1 ]
+then
+	echo "CPPFLAGS $CPPFLAGS"
+	echo "LIBS     $LIBS"
+	ls -l $MYTEMP
+fi
+
+export CPPFLAGS
+export LIBS
+
+[ $# != 0 ] && exec "$@"
+[ -t 0 ] || failed "shell is not interactive"
+[ -t 1 ] || failed "shell is not interactive"
+exec ${SHELL:=/bin/sh}
