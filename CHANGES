@@ -1,3 +1,43 @@
+2017-09-02  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses:
+	work around a bug in curs_set: slang does not flush output.
+
+	* with-slcurses:
+	don't use "exec" for running the resulting command, since that prevents
+	"trap" from cleaning up.
+
+	* with-slcurses: fix redefinition warnings wrt ncurses-examples
+
+	* with-slcurses: add a corresponding keyname() function
+
+	* with-slcurses: provide unctrl()
+
+	* with-slcurses:
+	use another level of #defines to reduce undefined symbols for ncurses-examples
+	to 36.
+
+	* with-slcurses:
+	reduce the number of different undefined functions for ncurses-examples using
+	the mvXXX macros
+
+	* with-slcurses: add insert/delete line, and stubs for prog/shell mode
+
+	* with-slcurses: add stubs for hline/vline
+
+	* with-slcurses: add A_ATTRIBUTES and setscrreg()
+
+	* with-slcurses:
+	add several stubs and fixes for missing/incorrect stuff in slang headers
+
+	* with-slcurses: successfully linked dots_termcap.
+
+	* with-slcurses:
+	just symlinking to curses.h does not go far enough - make a stub to allow
+	customization without contaminating my configure scripts further.
+
+	* with-slcurses: filter out the actual name of the temp-directory
+
 2017-08-20  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* cfg-slcurses: RCS_BASE
