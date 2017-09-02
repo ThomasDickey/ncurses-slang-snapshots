@@ -1,17 +1,67 @@
 #!/bin/sh
-# $Id: with-slcurses,v 1.2 2017/08/20 16:21:10 tom Exp $
-# pretend that "slcurses" is a variant of 4.3BSD curses, with a few features
-# added.
+# $Id: with-slcurses,v 1.15 2017/09/02 19:39:42 tom Exp $
+# -----------------------------------------------------------------------------
+# Copyright 2017 by Thomas E. Dickey
+#
+#                         All Rights Reserved
+#
+# Permission is hereby granted, free of charge, to any person obtaining a
+# copy of this software and associated documentation files (the
+# "Software"), to deal in the Software without restriction, including
+# without limitation the rights to use, copy, modify, merge, publish,
+# distribute, sublicense, and/or sell copies of the Software, and to
+# permit persons to whom the Software is furnished to do so, subject to
+# the following conditions:
+#
+# The above copyright notice and this permission notice shall be included
+# in all copies or substantial portions of the Software.
+#
+# THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+# OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF
+# MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT.
+# IN NO EVENT SHALL THE ABOVE LISTED COPYRIGHT HOLDER(S) BE LIABLE FOR ANY
+# CLAIM, DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT,
+# TORT OR OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE
+# SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
+#
+# Except as contained in this notice, the name(s) of the above copyright
+# holders shall not be used in advertising or otherwise to promote the
+# sale, use or other dealings in this Software without prior written
+# authorization.
+# -----------------------------------------------------------------------------
+# Pretend that "slcurses" is a variant of 4.3BSD curses, with a few features
+# added and removed.
 
 failed() {
 	echo "? $*" >&2
 	exit 1
 }
 
+tell() {
+	[ -n "$OPT_V" ] && echo "$*"
+}
+
+verbose() {
+	if [ -t 1 ]
+	then
+		"$@"
+	else
+		"$@" 2>&1|sed -e "s,$MYTEMP,\${MYTEMP},"
+	fi
+}
+
+do_links() {
+	verbose ln $OPT_V -sf $1 $MYTEMP/$2
+}
+
 MYTEMP=$(mktemp -d)
 [ -z "$MYTEMP" ] && failed "mktemp"
 [ -d "$MYTEMP" ] || failed "mktemp"
 trap "cd; rm -rf $MYTEMP" 0 1 2 3 15
+
+# use the verbose option for debugging the script
+OPT_V=
+[ -t 1 ] || OPT_V="-v"
 
 PKGTOOL=pkg-config
 unset CPPFLAGS
@@ -20,8 +70,8 @@ found=no
 for NAME in slang2 slang
 do
 	$PKGTOOL --exists $NAME 2>/dev/null || continue
-	CPPFLAGS="$($PKGTOOL --cflags $NAME 2>/dev/null )" 
-	LIBS="$($PKGTOOL --libs $NAME 2>/dev/null )" 
+	CPPFLAGS="$($PKGTOOL --cflags $NAME 2>/dev/null )"
+	LIBS="$($PKGTOOL --libs $NAME 2>/dev/null )"
 	found=yes
 	break
 done
@@ -29,7 +79,7 @@ done
 
 case "x$LIBS" in
 x*-L*)
-	echo "found libdir"
+	tell "found libdir"
 	libfile=
 	libroot="libslang${LIBS##*-lslang}"
 	libroot=${libroot%% *}
@@ -46,7 +96,7 @@ x*-L*)
 	[ -n "$libfile" ] || failed "could not find library file in $LIBS"
 	;;
 *)
-	echo "find libdir..."
+	tell "find libdir..."
 	libdir=
 	for head in /usr/lib /usr/lib/* /usr/lib/*$(arch)*
 	do
@@ -69,40 +119,309 @@ esac
 
 for fake in curses ncurses ncursesw tinfo tinfow termcap
 do
-	ln -svf $libfile $MYTEMP/lib$fake.a
+	do_links $libfile lib$fake.a
 done
 
-found=no
-for head in \
-	/usr/include \
-	/usr/include/slang* \
-	/usr/local/include \
-	/usr/local/include/slang*
-do
-	[ -d "$head" ] || continue
-	[ -f "$head/slcurses.h" ] || continue
-	for fake in curses ncurses
+cat >$MYTEMP/curses.h <<'EOF'
+#ifndef FAKE_CURSES_H
+#define FAKE_CURSES_H 1
+
+#include <slcurses.h>
+
+#undef tigetstr
+
+#undef HAVE_LIBFORM
+#undef HAVE_LIBMENU
+#undef HAVE_LIBPANEL
+
+#undef HAVE_LIBFORMW
+#undef HAVE_LIBMENUW
+#undef HAVE_LIBPANELW
+
+#ifndef OK
+#define OK (0)
+#endif
+
+#ifndef ERR
+#define ERR (-1)
+#endif
+
+/*
+ * Simulate termcap-interface with slang.  It has no comparable interface for
+ * terminfo, since it uses only termcap names.
+ */
+#define tgoto(cap, col, row) SLtt_tgoto(cap, col, row)
+#define tgetflag(name)       SLtt_tgetflag(name)
+#define tgetnum(name)        SLtt_tgetnum(name)
+#define tputs(s, c, f)       SLtt_tputs(s, c, f)
+
+extern int tgetent(char *, SLFUTURE_CONST char *);
+inline int tgetent(char *bp, SLFUTURE_CONST char *name)
+{
+	(void) bp;
+	return SLtt_tgetent((char *) name);
+}
+
+extern char * tgetstr(SLFUTURE_CONST char *, char **);
+inline char * tgetstr(SLFUTURE_CONST char *name, char **ap)
+{
+	(void) ap;
+	return SLtt_tgetstr(name);
+}
+
+/*
+ * These were overlooked in slcurses.h
+ */
+#define KEY_IC	SL_KEY_IC
+#define KEY_DC	SL_KEY_DELETE
+
+#define PAIR_NUMBER(a)	 ((a)>>24)
+
+#define getbegyx(w,y,x)  (y=(w)->_begy, x=(w)->_begx)
+#define setscrreg(a,b)   wsetscrreg(stdscr,a,b)
+#define insertln()       winsertln(stdscr)
+#define deleteln()       SLtt_delete_nlines(1)
+
+#define erasechar()      KEY_BACKSPACE
+#define killchar()       Slang_Abort_Char
+
+#define baudrate()       SLang_TT_Baud_Rate
+#define delay_output(ms) napms(ms)
+#define intrflush(w,n)   SLcurses_nil
+
+#define def_prog_mode SLcurses_nil
+#define def_shell_mode SLcurses_nil
+#define reset_prog_mode SLang_init_tty(-1, 1, 0)
+#define reset_shell_mode SLang_reset_tty 
+
+#define A_ATTRIBUTES	(\
+	A_NORMAL	|\
+	A_BOLD		|\
+	A_REVERSE	|\
+	A_UNDERLINE	|\
+	A_ALTCHARSET	|\
+	A_BLINK		|\
+	A_DIM		|\
+	A_PROTECT	|\
+	A_INVIS		)
+
+extern int wredrawln(WINDOW *w, int s, int c);
+inline int wredrawln(WINDOW *w, int s, int c)
+{
+	(void) w;
+	SLsmg_touch_lines(s,c);
+	refresh();
+	return OK;
+}
+
+/*
+ * These are errors in slang headers.
+ */
+#undef touchline
+#define touchline(w,s,c) SLsmg_touch_lines(s,c)
+
+#undef hline
+#define hline(c,n) SLsmg_draw_hline(n)
+
+#undef vline
+#define vline(c,n) SLsmg_draw_vline(n)
+
+#undef whline
+#define whline(w,c,n) SLsmg_draw_hline(n)
+
+#undef wvline
+#define wvline(w,c,n) SLsmg_draw_vline(n)
+
+#define border(ls, rs, ts, bs, tl, tr, bl, br) box()
+#define wborder(win, ls, rs, ts, bs, tl, tr, bl, br) box()
+
+extern const char *unctrl(int c);
+inline const char *unctrl(int c)
+{
+	static char table[256][4];
+	char *result = 0;
+	if (c >= 0 && c < 256) {
+		result = &table[c][0];
+		if (*result == 0) {
+			if (c < 32)
+				sprintf(result, "^%c", c | '@');
+			else if (c < 128)
+				sprintf(result, "%c", c);
+			else if (c == 128)
+				sprintf(result, "^?");
+			else if (c < 160)
+				sprintf(result, "M-%c", c & 0x1f);
+			else
+				sprintf(result, "%c", c);
+		}
+	}
+	return (const char *)result;
+}
+
+extern const char *keyname(int c);
+inline const char *keyname(int c)
+{
+#define SL_KEYNAMES(name) { name, #name }
+	static struct {
+		int code;
+		const char *name;
+	} table[] = {
+		SL_KEYNAMES(KEY_DOWN),
+		SL_KEYNAMES(KEY_UP),
+		SL_KEYNAMES(KEY_LEFT),
+		SL_KEYNAMES(KEY_RIGHT),
+		SL_KEYNAMES(KEY_A1),
+		SL_KEYNAMES(KEY_C1),
+		SL_KEYNAMES(KEY_B2),
+		SL_KEYNAMES(KEY_A3),
+		SL_KEYNAMES(KEY_C3),
+		SL_KEYNAMES(KEY_REDO),
+		SL_KEYNAMES(KEY_UNDO),
+		SL_KEYNAMES(KEY_BACKSPACE),
+		SL_KEYNAMES(KEY_PPAGE),
+		SL_KEYNAMES(KEY_NPAGE),
+		SL_KEYNAMES(KEY_HOME),
+		SL_KEYNAMES(KEY_END),
+		SL_KEYNAMES(KEY_ENTER),
+		SL_KEYNAMES(KEY_IC),
+		SL_KEYNAMES(KEY_DC),
+		{ 0, 0 }
+	};
+#undef SL_KEYNAMES
+	const char *result = 0;
+	if (c < 256) {
+		result = unctrl(c);
+	} else if (c < KEY_F0) {
+		int n;
+		for (n = 0; table[n].code; ++n) {
+			if (table[n].code == c) {
+				result = table[n].name;
+				break;
+			}
+		}
+	} else if (c < 0x1000) {
+		static char dummy[20];
+		sprintf(dummy, "KEY_F%d", c - KEY_F0);
+		result = dummy;
+	}
+	return result;
+}
+
+/*
+ * Reduce the number of missing functions for ncurses-examples
+ */
+#define mvaddchnstr(y,x,str,n)		mvwaddchnstr(stdscr,y,x,str,n)
+#define mvaddchstr(y,x,str)		mvwaddchstr(stdscr,y,x,str)
+#define mvinch(y,x)			mvwinch(stdscr,y,x)
+#define mvinchnstr(y,x,s,n)		mvwinchnstr(stdscr,y,x,s,n)
+#define mvinchstr(y,x,s)		mvwinchstr(stdscr,y,x,s)
+#define mvinnstr(y,x,s,n)		mvwinnstr(stdscr,y,x,s,n)
+#define mvinstr(y,x,s)			mvwinstr(stdscr,y,x,s)
+
+#define mvwaddchnstr(win,y,x,str,n)	(wmove(win,y,x) == ERR ? ERR : waddchnstr(win,str,n))
+#define mvwaddchstr(win,y,x,str)	(wmove(win,y,x) == ERR ? ERR : waddchnstr(win,str,-1))
+#define mvwdelch(win,y,x)		(wmove(win,y,x) == ERR ? ERR : wdelch(win))
+#define mvwgetch(win,y,x)		(wmove(win,y,x) == ERR ? ERR : wgetch(win))
+#define mvwinchnstr(win,y,x,s,n)	(wmove(win,y,x) == ERR ? ERR : winchnstr(win,s,n))
+#define mvwinchstr(win,y,x,s)		(wmove(win,y,x) == ERR ? ERR : winchstr(win,s))
+#define mvwinnstr(win,y,x,s,n)		(wmove(win,y,x) == ERR ? ERR : winnstr(win,s,n))
+#define mvwinstr(win,y,x,s)		(wmove(win,y,x) == ERR ? ERR : winstr(win,s))
+
+#define addchnstr(str,n)		waddchnstr(stdscr,str,n)
+#define addchstr(str)			waddchstr(stdscr,str)
+#define getstr(str)			wgetstr(stdscr,str)
+#define inchnstr(s,n)			winchnstr(stdscr,s,n)
+#define inchstr(s)			winchstr(stdscr,s)
+#define innstr(s,n)			winnstr(stdscr,s,n)
+#define insdelln(n)			winsdelln(stdscr,n)
+#define instr(s)			winstr(stdscr,s)
+#define redrawwin(win)			wredrawln(win, 0, (win)->_maxy+1)
+#define waddchstr(win,str)		waddchnstr(win,str,-1)
+#define wgetstr(w, s)			wgetnstr(w, s, -1)
+#define winchstr(win, s)		winchnstr(win, s, -1)
+#define winstr(win, s)			winnstr(win, s, -1)
+
+/*
+ * Stubs that might be converted to slang-calls
+ */
+extern int wbkgd(WINDOW *win, chtype ch);
+inline int wbkgd(WINDOW *win, chtype ch)
+{
+	(void) win;
+	(void) ch;
+	return OK;
+}
+#define bkgd(ch) wbkgd(stdscr, ch)
+
+extern int wbkgdset(WINDOW *win, chtype ch);
+inline int wbkgdset(WINDOW *win, chtype ch)
+{
+	(void) win;
+	(void) ch;
+	return OK;
+}
+#define bkgdset(ch) wbkgdset(stdscr, ch)
+
+extern int has_ic(void);
+inline int has_ic(void)
+{
+	return FALSE;
+}
+
+extern int has_il(void);
+inline int has_il(void)
+{
+	return FALSE;
+}
+
+extern int idlok(WINDOW *, bool);
+inline int idlok(WINDOW *win, bool bf)
+{
+	(void) win;
+	return bf ? OK : FALSE;
+}
+
+#endif /* FAKE_CURSES_H */
+EOF
+do_links $MYTEMP/curses.h ncurses.h 2>&1|sed -e "s,$MYTEMP,MYTEMP,"
+
+if [ -z "$CPPFLAGS" ]
+then
+	found=no
+	for head in \
+		/usr/include \
+		/usr/include/slang* \
+		/usr/local/include \
+		/usr/local/include/slang*
 	do
-		ln -svf $head/slcurses.h $MYTEMP/$fake.h
+		[ -d "$head" ] || continue
+		[ -f "$head/slcurses.h" ] || continue
+		if [ "$head" != /usr/include ]
+		then
+			CPPFLAGS="-I$head"
+		fi
+		found=yes
+		break
 	done
-	[ "$head" = /usr/include ] || CPPFLAGS="-I$head"
-	CPPFLAGS="-I$MYTEMP $CPPFLAGS"
-	found=yes
-	break
-done
-[ $found = yes ] || failed "cannot find slcurses.h"
+	[ $found = yes ] || failed "cannot find slcurses.h"
+fi
+CPPFLAGS="-I$MYTEMP"
 
 if [ ! -t 1 ]
 then
-	echo "CPPFLAGS $CPPFLAGS"
-	echo "LIBS     $LIBS"
-	ls -l $MYTEMP
+	verbose echo "CPPFLAGS $CPPFLAGS"
+	verbose echo "LIBS     $LIBS"
+	[ -n "$OPT_V" ] && ls -l $MYTEMP
 fi
 
 export CPPFLAGS
 export LIBS
 
-[ $# != 0 ] && exec "$@"
-[ -t 0 ] || failed "shell is not interactive"
-[ -t 1 ] || failed "shell is not interactive"
-exec ${SHELL:=/bin/sh}
+if [ $# != 0 ]
+then
+	"$@"
+else
+	[ -t 0 ] || failed "shell is not interactive"
+	[ -t 1 ] || failed "shell is not interactive"
+	${SHELL:=/bin/sh}
+fi
