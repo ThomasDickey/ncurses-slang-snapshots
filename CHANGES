@@ -1,3 +1,21 @@
+2017-09-03  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses: add winnstr
+
+	* with-slcurses: add winchnstr()
+
+	* with-slcurses: pretend terminal's a vt100 :-)
+
+	* with-slcurses: note stubs vs code :-)
+
+	* with-slcurses: add stub for waddchnstr()
+
+	* with-slcurses: corrected params for border/wborder
+
+	* with-slcurses:
+	work around multiple-definition problem when combining object-files using
+	this header by using MODULE_NAME to prefix the inline function-names.
+
 2017-09-02  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* with-slcurses:
