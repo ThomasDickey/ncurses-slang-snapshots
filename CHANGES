@@ -1,3 +1,42 @@
+2017-09-04  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses: make unctrl/keyname act as in ncurses for 128-255
+
+	* with-slcurses: add wgetnstr
+
+	* with-slcurses:
+	static-inline doesn't show as well in the symbol table though - make it easy to switch
+
+	* with-slcurses:
+	static-inline works just as well as extern-inline (but keep the renaming
+	feature, to avoid confusion about which module they belonged to.
+
+	* with-slcurses: add notimeout() and halfdelay()
+
+	* with-slcurses: quick implementation of copywin
+
+	* with-slcurses:
+	turn off slcurses.h's fake for copywin/overlay, add some comments.
+
+	* with-slcurses: add getbkgd()
+
+	* with-slcurses: add pair_content()
+
+	* with-slcurses: fake termname(), longname()
+
+	* with-slcurses: fix typo in reset_prog_mode()
+
+	* with-slcurses: add echochar
+
+	* with-slcurses: add meta()
+
+	* with-slcurses:
+	add newterm - makes my changes to ncurses-examples less obvious :-)
+
+	* with-slcurses: note in the generated file
+
+	* with-slcurses: add scanw, etc.
+
 2017-09-03  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* with-slcurses: add winnstr
