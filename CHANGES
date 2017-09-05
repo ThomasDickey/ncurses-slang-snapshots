@@ -1,3 +1,17 @@
+2017-09-05  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses: debugged wgetnstr, making wscanw work.
+
+	* with-slcurses: slang returns '\r' where curses would return '\n'
+
+	* with-slcurses:
+	move wgetnstr before the scanw - this makes "testscanw" partly work
+	(at least, something appears on the screen).  To check my memory about
+	"generally available", I found
+		http://www.open-std.org/jtc1/sc22/WG14/www/docs/n701.htm
+		JTC1/SC22/WG14 N701
+		May 22, 1997
+
 2017-09-04  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* with-slcurses: make unctrl/keyname act as in ncurses for 128-255

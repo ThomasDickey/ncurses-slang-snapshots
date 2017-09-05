@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: with-slcurses,v 1.39 2017/09/04 19:50:25 tom Exp $
+# $Id: with-slcurses,v 1.40 2017/09/05 23:58:44 tom Exp $
 # -----------------------------------------------------------------------------
 # Copyright 2017 by Thomas E. Dickey
 #
@@ -652,9 +652,53 @@ inline int winnstr(WINDOW *win, char *str, int n)
 }
 
 /*
- * The vsscanf function was not generally available in 1996, and the developers
- * of SLcurses had no idea how to make their own, nor how it might be used in
- * curses.
+ * wscanw, etc., use wgetnstr(), which is absent from SLcurses.
+ */
+INLINE int wgetnstr(WINDOW *win, char *str, int n);
+inline int wgetnstr(WINDOW *win, char *str, int n)
+{
+	int rc = OK;
+	int ch;
+	int base = win->_curx;
+	bool done = FALSE;
+
+	if (n <= 0)
+		n = ((int) win->ncols - win->_curx);
+	while (!done) {
+		ch = wgetch(win);
+		if (ch <= 0)
+			break;
+		switch (ch) {
+		case '\n':
+			done = TRUE;
+			break;
+		case '\b':
+			if ((int) win->_curx > base) {
+				waddch(win, '\b');
+				waddch(win, ' ');
+				waddch(win, '\b');
+			} else {
+				flash();
+			}
+			break;
+		default:
+			if ((int) win->_curx < (base + n)) {
+				waddch(win, ch);
+			} else {
+				flash();
+			}
+			break;
+		}
+	}
+	rc = winnstr(win, str, ((int) win->_curx - base));
+	waddch(win, '\n');
+	return rc;
+}
+
+/*
+ * The vsscanf function was not generally available in 1996 (it was proposed
+ * for standardization in 1997), and the developers of SLcurses had no idea
+ * how to make their own, nor how it might be used in curses.
  */
 INLINE int _vawscanw(WINDOW *win, const char *fmt, va_list ap);
 inline int _vawscanw(WINDOW *win, const char *fmt, va_list ap)
@@ -663,7 +707,7 @@ inline int _vawscanw(WINDOW *win, const char *fmt, va_list ap)
 	int need = 1 + (win->ncols - win->_curx);
 	char *buffer = malloc(need + 1);
 	if (buffer != 0) {
-		if ((rc = winnstr(win, buffer, need)) == OK) {
+		if ((rc = wgetnstr(win, buffer, need)) == OK) {
 			rc = vsscanf(buffer, fmt, ap);
 		}
 		free(buffer);
@@ -740,6 +784,7 @@ inline int copywin(const WINDOW *srcwin, WINDOW *dstwin, int sminrow, int sminco
 			}
 		}
 	}
+	touchwin(dstwin);
 	return OK;
 }
 
@@ -760,50 +805,6 @@ inline int overwrite(const WINDOW *srcwin, WINDOW *dstwin)
 		       (int)(srcwin)->nrows - 1,
 		       (int)(srcwin)->ncols - 1,
 		       FALSE);
-}
-
-/*
- * wscanw, etc., use wgetnstr(), which is absent from SLcurses.
- */
-INLINE int wgetnstr(WINDOW *win, char *str, int n);
-inline int wgetnstr(WINDOW *win, char *str, int n)
-{
-	int rc = OK;
-	int ch;
-	int base = win->_curx;
-	bool done = FALSE;
-
-	if (n <= 0)
-		n = ((int) win->ncols - win->_curx);
-	while (!done) {
-		ch = wgetch(win);
-		if (ch <= 0)
-			break;
-		switch (ch) {
-		case '\n':
-			done = TRUE;
-			break;
-		case '\b':
-			if ((int) win->_curx > base) {
-				waddch(win, '\b');
-				waddch(win, ' ');
-				waddch(win, '\b');
-			} else {
-				flash();
-			}
-			break;
-		default:
-			if ((int) win->_curx < (base + n)) {
-				waddch(win, ch);
-			} else {
-				flash();
-			}
-			break;
-		}
-	}
-	rc = winnstr(win, str, ((int) win->_curx - base));
-	waddch(win, '\n');
-	return rc;
 }
 
 #endif /* FAKE_CURSES_H */
