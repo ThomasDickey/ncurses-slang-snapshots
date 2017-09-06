@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: with-slcurses,v 1.40 2017/09/05 23:58:44 tom Exp $
+# $Id: with-slcurses,v 1.46 2017/09/06 23:06:37 tom Exp $
 # -----------------------------------------------------------------------------
 # Copyright 2017 by Thomas E. Dickey
 #
@@ -31,9 +31,6 @@
 # -----------------------------------------------------------------------------
 # Pretend that "slcurses" is a variant of 4.3BSD curses, with a few features
 # added and removed.
-#
-# TODO: derwin
-# TODO: wgetnstr -> wscanw
 
 failed() {
 	echo "? $*" >&2
@@ -140,8 +137,30 @@ cat >$MYTEMP/curses.h <<'EOF'
 
 #include <slcurses.h>
 
+/*
+ * Define INLINE to static or extern, depending on whether you want to see
+ * symbols for each inline'd function.
+ */
 #undef INLINE
 #define INLINE static
+
+#if 0
+static void _dprintf(const char *fmt, ...) SLATTRIBUTE_((format(printf,1,2)));
+static void _dprintf(const char *fmt, ...)
+{
+	FILE *fp = fopen("trace.log", "a");
+	if (fp != 0) {
+		va_list ap;
+		va_start(ap,fmt);
+		vfprintf(fp, fmt, ap);
+		va_end(ap);
+		fclose(fp);
+	}
+}
+#define DPRINTF(p) _dprintf p
+#else
+#define DPRINTF(p) /* nothing */
+#endif
 
 /*
  * Cancel a few things where slang's header files confuse configure scripts.
@@ -239,6 +258,10 @@ cat >$MYTEMP/curses.h <<'EOF'
 /*
  * Simulate termcap-interface with slang.  It has no comparable interface for
  * terminfo, since it uses only termcap names.
+ *
+ * The cast in tgetent() will get a compiler warning.  There are several
+ * functions in SLcurses which are missing a SLFUTURE_CONST, including
+ * SLcurses_waddnstr().
  */
 #define tgoto(cap, col, row) SLtt_tgoto(cap, col, row)
 #define tgetflag(name)       SLtt_tgetflag(name)
@@ -271,6 +294,13 @@ inline char * tgetstr(SLFUTURE_CONST char *name, char **ap)
 #define setscrreg(a,b)   wsetscrreg(stdscr,a,b)
 #define insertln()       winsertln(stdscr)
 #define deleteln()       SLtt_delete_nlines(1)
+
+#define derwin(orig, nlines, ncols, begin_y, begin_x) \
+	((orig) \
+	 ? subwin(orig, nlines, ncols, \
+		  (orig)->_begy + begin_y, \
+		  (orig)->_begx + begin_x) \
+	 : 0)
 
 #define notimeout(w,b)   do { ESCDELAY = (b) ? 100 : 0; } while (0)
 #define halfdelay(n)     timeout((n) * 100)
@@ -345,6 +375,7 @@ inline SCREEN *newterm(char *type, FILE *outfd, FILE *infd)
 		fprintf(stderr, "This library cannot simulate \"newterm\"\n");
 		exit(EXIT_FAILURE);
 	}
+	initscr();
 	return (SCREEN *)malloc(1);
 }
 
@@ -379,6 +410,10 @@ inline int curs_set(int mode)
 
 #define border(ls, rs, ts, bs, tl, tr, bl, br) box(stdscr, ls, ts)
 #define wborder(win, ls, rs, ts, bs, tl, tr, bl, br) box(win, ls, ts)
+
+#undef mvwinch
+#define mvwinch(w,x,y) \
+    ((-1 != wmove((w),(x),(y))) ? winch(w) : (chtype)(-1))
 
 /*
  * Missing functions, added for ncurses-examples
@@ -659,7 +694,10 @@ inline int wgetnstr(WINDOW *win, char *str, int n)
 {
 	int rc = OK;
 	int ch;
-	int base = win->_curx;
+	int oldy = win->_cury;
+	int oldx = win->_curx;
+	int newy = ((oldy >= (int) win->nrows) && win->scroll_ok) ? oldy - 1 : oldy;
+	int newx;
 	bool done = FALSE;
 
 	if (n <= 0)
@@ -669,11 +707,12 @@ inline int wgetnstr(WINDOW *win, char *str, int n)
 		if (ch <= 0)
 			break;
 		switch (ch) {
+		case '\r':
 		case '\n':
 			done = TRUE;
 			break;
 		case '\b':
-			if ((int) win->_curx > base) {
+			if ((int) win->_curx > oldx) {
 				waddch(win, '\b');
 				waddch(win, ' ');
 				waddch(win, '\b');
@@ -682,7 +721,7 @@ inline int wgetnstr(WINDOW *win, char *str, int n)
 			}
 			break;
 		default:
-			if ((int) win->_curx < (base + n)) {
+			if ((int) win->_curx < (oldx + n)) {
 				waddch(win, ch);
 			} else {
 				flash();
@@ -690,8 +729,11 @@ inline int wgetnstr(WINDOW *win, char *str, int n)
 			break;
 		}
 	}
-	rc = winnstr(win, str, ((int) win->_curx - base));
+	newx = win->_curx;
+	wmove(win, oldy, oldx);
+	rc = winnstr(win, str, 1 + (newx - oldx));
 	waddch(win, '\n');
+	wmove(win, newy, oldx);
 	return rc;
 }
 
@@ -763,26 +805,42 @@ inline int mvwscanw(WINDOW *win, int y, int x, char *fmt, ...)
 INLINE int copywin(const WINDOW *srcwin, WINDOW *dstwin, int sminrow, int smincol, int dminrow, int dmincol, int dmaxrow, int dmaxcol, int mode);
 inline int copywin(const WINDOW *srcwin, WINDOW *dstwin, int sminrow, int smincol, int dminrow, int dmincol, int dmaxrow, int dmaxcol, int mode)
 {
-	int y, x;
-	if (!mode
-	  || (sminrow != 0)
-	  || (smincol != 0)
-	  || (dminrow != 0)
-	  || (dmincol != 0)
-	  || (dmaxrow >= ((int) dstwin->nrows - 1))
-	  || (dmaxcol >= ((int) dstwin->ncols - 1)))
+	int yd, xd;
+	int ys, xs;
+	int ch;
+	DPRINTF(("copywin %d,%d -> %d,%d (%d/%d,%d/%d)\n",
+		sminrow, smincol,
+		dminrow, dmincol,
+		dmaxrow, dstwin->nrows - 1,
+		dmaxcol, dstwin->ncols - 1));
+	if (srcwin == 0 || dstwin == 0)
 		return ERR;
-	if (srcwin->ncols != dstwin->ncols)
-		return ERR;
-	if (srcwin->nrows != dstwin->nrows)
-		return ERR;
-	/* FIXME - check for overlap */
-	for (y = 0; y < (int) dstwin->nrows; ++y) {
-		for (x = 0; x < (int) dstwin->nrows; ++x) {
-			if (srcwin->lines[y][x].main != ' ' || !mode) {
-				dstwin->lines[y][x] = srcwin->lines[y][x];
+	/* FIXME - check for overlapping windows */
+	DPRINTF(("OK:\n"));
+	for (yd = dminrow; yd < dmaxrow; ++yd) {
+		ys = sminrow + (yd - dminrow);
+		if (ys < 0 || yd < 0)
+			continue;
+		if (ys >= (int) srcwin->nrows)
+			break;
+		if (yd >= (int) dstwin->nrows)
+			break;
+		DPRINTF(("row %3d:", yd));
+		for (xd = dmincol; xd < dmaxcol; ++xd) {
+			xs = smincol + (xd - dmincol);
+			if (xs < 0 || xd < 0)
+				continue;
+			if (xs >= (int) srcwin->ncols)
+				break;
+			if (xd >= (int) dstwin->ncols)
+				break;
+			ch = (char) (srcwin->lines[yd][xd].main & A_CHARTEXT);
+			if (ch != ' ' || !mode) {
+				dstwin->lines[yd][xd] = srcwin->lines[ys][xs];
 			}
+			DPRINTF(("%c", (char)(dstwin->lines[yd][xd].main & A_CHARTEXT)));
 		}
+		DPRINTF(("\n"));
 	}
 	touchwin(dstwin);
 	return OK;

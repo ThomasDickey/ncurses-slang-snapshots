@@ -1,3 +1,17 @@
+2017-09-06  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses: better copywin, but doesn't work properly yet.
+
+	* with-slcurses:
+	fix a compiler warning for mvwinch(), comment on others
+
+	* with-slcurses: add derwin, used in my popup-msg module
+
+	* with-slcurses:
+	newterm isn't really the same as initscr, but pretending that it is allows
+	redraw to "work", while none of the other programs which use newterm are
+	broken.
+
 2017-09-05  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* with-slcurses: debugged wgetnstr, making wscanw work.
