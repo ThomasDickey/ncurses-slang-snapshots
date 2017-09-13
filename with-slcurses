@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: with-slcurses,v 1.46 2017/09/06 23:06:37 tom Exp $
+# $Id: with-slcurses,v 1.47 2017/09/13 23:15:04 tom Exp $
 # -----------------------------------------------------------------------------
 # Copyright 2017 by Thomas E. Dickey
 #
@@ -370,7 +370,7 @@ INLINE SCREEN *newterm(char *type, FILE *outfd, FILE *infd);
 inline SCREEN *newterm(char *type, FILE *outfd, FILE *infd)
 {
 	if (infd != stdin
-	 || outfd != outfd
+	 || outfd != stdout
 	 || SLtt_initialize (type) != 0) {
 		fprintf(stderr, "This library cannot simulate \"newterm\"\n");
 		exit(EXIT_FAILURE);
@@ -421,7 +421,7 @@ inline int curs_set(int mode)
 INLINE const char *unctrl(int c);
 inline const char *unctrl(int c)
 {
-	INLINE char table[256][6];
+	static char table[256][6];
 	char *result = 0;
 	if (c >= 0 && c < 256) {
 		result = &table[c][0];
@@ -447,7 +447,7 @@ INLINE const char *keyname(int c);
 inline const char *keyname(int c)
 {
 #define SL_KEYNAMES(name) { name, #name }
-	INLINE struct {
+	static struct {
 		int code;
 		const char *name;
 	} table[] = {
