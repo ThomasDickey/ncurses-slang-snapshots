@@ -1,3 +1,7 @@
+2017-09-13  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses: errata with inline
+
 2017-09-06  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* with-slcurses: better copywin, but doesn't work properly yet.
