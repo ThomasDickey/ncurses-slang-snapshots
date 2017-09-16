@@ -1,3 +1,19 @@
+2017-09-16  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses: fixup for waddnstr
+
+	* with-slcurses: copy the copyright notice into the header.
+
+	* with-slcurses: add workaround for wmove
+
+2017-09-15  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses: fix case where addch was used, but waddch needed
+
+	* with-slcurses:
+	ignore slang's prototypes where I get compiler warnings that SLFUTURE_CONST
+	should have fixed.  Start fixes for "-1" parameter to winchnstr, etc.
+
 2017-09-13  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* with-slcurses: errata with inline
