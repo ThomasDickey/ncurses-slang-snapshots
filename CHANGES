@@ -1,3 +1,7 @@
+2017-09-17  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses: tweak per Debian #51176
+
 2017-09-16  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* with-slcurses: fixup for waddnstr

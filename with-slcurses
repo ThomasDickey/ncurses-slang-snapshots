@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: with-slcurses,v 1.52 2017/09/16 16:53:34 tom Exp $
+# $Id: with-slcurses,v 1.53 2017/09/18 00:49:43 tom Exp $
 # -----------------------------------------------------------------------------
 # Copyright 2017 by Thomas E. Dickey
 #
@@ -299,7 +299,7 @@ INLINE int tgetent(char *, SLFUTURE_CONST char *);
 inline int tgetent(char *bp, SLFUTURE_CONST char *name)
 {
 	(void) bp;
-	return SLtt_tgetent(name);
+	return SLtt_tgetent(name) == 0;
 }
 
 INLINE char * tgetstr(SLFUTURE_CONST char *, char **);
