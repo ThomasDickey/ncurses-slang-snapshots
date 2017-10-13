@@ -51,9 +51,10 @@
  * scroll operation worked, and the refresh() code only had to do a
  * partial repaint.
  *
- * $Id: view_slcursesw.c,v 1.5 2017/04/25 23:28:48 tom Exp $
+ * $Id: view_slcursesw.c,v 1.7 2017/10/13 21:07:29 tom Exp $
  */
 
+#define _XOPEN_SOURCE 600	/* See feature_test_macros(7) */
 #include <slcurses.h>
 #include <unistd.h>
 #include <stdlib.h>
@@ -87,9 +88,12 @@
  * no improvement.
  */
 typedef SLcurses_Cell_Type cchar_t;
+#define CCHARW_MAX SLSMG_MAX_CHARS_PER_CELL
+typedef SLcurses_Char_Type attr_t;
 
 #define UChar(c) (unsigned char)(c)
 
+#define IGNORE_RC(func) (void) func
 #define reset_mbytes(state) IGNORE_RC(mblen(NULL, 0)), IGNORE_RC(mbtowc(NULL, NULL, 0))
 #define count_mbytes(buffer,length,state) mblen(buffer,length)
 #define check_mbytes(wch,buffer,length,state) \
@@ -97,6 +101,8 @@ typedef SLcurses_Cell_Type cchar_t;
 #define state_unused
 
 #define my_pair 1
+
+#define OK (0)
 
 #undef CTRL
 #define CTRL(x)	((x) & 0x1f)
@@ -108,8 +114,6 @@ static char *fname;
 static cchar_t **vec_lines;
 static cchar_t **lptr;
 static int num_lines;
-
-static void usage(void);
 
 static void
 usage(void)
@@ -138,7 +142,7 @@ usage(void)
 
 /* MISSING */
 static void
-add_wchstr(cchar_t * s)
+add_wchstr(cchar_t *s)
 {
     int n;
 
@@ -209,7 +213,7 @@ setscrreg(int t, int b)
 #endif /* SLANG_VERSION */
 
 static int
-ch_len(cchar_t * src)
+ch_len(cchar_t *src)
 {
     int result = 0;
 
@@ -221,20 +225,64 @@ ch_len(cchar_t * src)
 }
 
 /*
- * Allocate a string into an array of chtype's.  If UTF-8 mode is
- * active, translate the string accordingly.
+ * MISSING
+ */
+static int
+setcchar(cchar_t *wcval, const wchar_t *wch, const attr_t attrs, short
+	 color_pair, void *opts)
+{
+    int j;
+    memset(wcval, 0, sizeof(*wcval));
+    wcval->main = (SLcurses_Char_Type) wch[0];
+    for (j = 1; wch[j] != 0; ++j)
+	wcval->combining[j - 1] = (SLwchar_Type) wch[j];
+    return OK;
+}
+
+/*
+ * Allocate a string into an array of cchar_t's.
  */
 static cchar_t *
 ch_dup(char *src)
 {
     unsigned len = (unsigned) strlen(src);
-    cchar_t *dst = malloc(sizeof(cchar_t) * (len + 1));
+    cchar_t *dst = calloc(sizeof(cchar_t), len + 1);
     size_t j, k;
+    wchar_t wstr[SLSMG_MAX_CHARS_PER_CELL + 1];
+    wchar_t wch;
+    int l = 0;
+    size_t rc;
+    int width;
 
+    reset_mbytes(state);
     for (j = k = 0; j < len; j++) {
-	dst[k++].main = (chtype) UChar(src[j]);
+	rc = (size_t) check_mbytes(wch, src + j, len - j, state);
+	if (rc == (size_t) -1 || rc == (size_t) -2) {
+	    break;
+	}
+	j += rc - 1;
+	width = wcwidth(wch);
+	if (width == 0) {
+	    if (l == 0) {
+		wstr[l++] = L' ';
+	    }
+	} else if ((l > 0) || (l == CCHARW_MAX)) {
+	    wstr[l] = L'\0';
+	    l = 0;
+	    if (setcchar(dst + k, wstr, 0, 0, NULL) != OK) {
+		break;
+	    }
+	    ++k;
+	}
+	wstr[l++] = wch;
     }
-    dst[k].main = 0;
+    if (l > 0) {
+	wstr[l] = L'\0';
+	if (setcchar(dst + k, wstr, 0, 0, NULL) == OK)
+	    ++k;
+    }
+    wstr[0] = L'\0';
+    setcchar(dst + k, wstr, 0, 0, NULL);
     return dst;
 }
 
@@ -355,7 +403,7 @@ main(int argc, char *argv[])
 	usage();
 
     if ((vec_lines = calloc(1, sizeof(cchar_t) * (size_t) MAXLINES + 2)) == 0)
-	usage();
+	  usage();
 
     assert(vec_lines != 0);
 
@@ -366,38 +414,10 @@ main(int argc, char *argv[])
     }
 
     for (lptr = &vec_lines[0]; (lptr - vec_lines) < MAXLINES; lptr++) {
-	char temp[BUFSIZ], *s, *d;
-	int col;
-
 	if (fgets(buf, sizeof(buf), fp) == 0)
 	    break;
 
-	/* convert tabs and nonprinting chars so that shift will work properly */
-	for (s = buf, d = temp, col = 0; (*d = *s) != '\0'; s++) {
-	    if (*d == '\r') {
-		if (s[1] == '\n') {
-		    continue;
-		} else {
-		    break;
-		}
-	    }
-	    if (*d == '\n') {
-		*d = '\0';
-		break;
-	    } else if (*d == '\t') {
-		col = (col | 7) + 1;
-		while ((d - temp) != col)
-		    *d++ = ' ';
-	    } else if (isprint(UChar(*d))) {
-		col++;
-		d++;
-	    } else {
-		sprintf(d, "\\%03o", UChar(*s));
-		d += strlen(d);
-		col = (int) (d - temp);
-	    }
-	}
-	*lptr = ch_dup(temp);
+	*lptr = ch_dup(buf);
     }
     (void) fclose(fp);
     num_lines = (int) (lptr - vec_lines);

@@ -1,9 +1,10 @@
 PROGS	= \
 	dots_slcurses \
 	view_slang \
-	view_slcurses
+	view_slcurses \
+	view_slcursesw
 
-CC	= gcc-normal
+CC	= gcc-normal -W
 
 LIBS	= -lslang -lm
 

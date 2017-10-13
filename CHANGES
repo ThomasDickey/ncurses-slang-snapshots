@@ -1,3 +1,36 @@
+2017-10-13  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* view_slang.c: add cases for compat with ncurses
+
+	* view_slang.c: eliminate a global
+
+	* view_slang.c: minor cleanup
+
+	* view_slang.c: implement -i option
+
+	* view_slang.c: be consistent on exit's
+
+	* view_slang.c: eliminate a global
+
+	* view_slang.c: eliminate some pointless code
+
+	* view_slang.c: eliminate forward references
+
+	* view_slang.c: RCS_BASE
+
+	* makefile: sort names
+
+	* makefile: renaming, for consistency
+
+	* view_slcursesw.c:
+	adapted my code from test/view.c to get Unicode working here.
+
+	* makefile: add -W option
+
+2017-10-12  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* view_slcursesw.c: adapt ch_dup from ncurses view.c
+
 2017-09-17  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* with-slcurses: tweak per Debian #51176
