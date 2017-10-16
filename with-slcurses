@@ -1,5 +1,5 @@
 #!/bin/sh
-# $Id: with-slcurses,v 1.53 2017/09/18 00:49:43 tom Exp $
+# $Id: with-slcurses,v 1.54 2017/10/16 08:18:18 tom Exp $
 # -----------------------------------------------------------------------------
 # Copyright 2017 by Thomas E. Dickey
 #
@@ -12,6 +12,10 @@
 # distribute, sublicense, and/or sell copies of the Software, and to
 # permit persons to whom the Software is furnished to do so, subject to
 # the following conditions:
+#
+# This is a supporting work for discussion of the ncurses and slang libraries,
+# consequently the permission notice requires this URL to be included:
+#	https://invisible-island.net/ncurses/ncurses-slang.html
 #
 # The above copyright notice and this permission notice shall be included
 # in all copies or substantial portions of the Software.

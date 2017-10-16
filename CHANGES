@@ -1,3 +1,7 @@
+2017-10-16  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* with-slcurses: tie-in to discussion
+
 2017-10-13  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* view_slang.c: add cases for compat with ncurses
