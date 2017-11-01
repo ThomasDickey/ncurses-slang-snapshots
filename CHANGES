@@ -1,3 +1,23 @@
+2017-11-01  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* view_slang.c:
+	implement -s option like ncurses, along with clock in header.
+
+	* view_slang.c:
+	show line-numbers, integrated with scrolling.  This uses 8 digits for the
+	number-column, since SLscroll_xxx does tab-expansion based on the full
+	width of the screen, not the window within SLsmg_set_start, etc.
+
+	* view_slang.c: show key-names as typed, like ncurses
+
+	* view_slang.c:
+	split-out update_header, make the header not scroll left/right like the
+	file contents
+
+2017-10-31  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* view_slang.c: move title to first line, like ncurses
+
 2017-10-16  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* with-slcurses: tie-in to discussion

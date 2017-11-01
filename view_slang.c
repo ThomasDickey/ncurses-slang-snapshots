@@ -1,8 +1,14 @@
 /*
- * $Id: view_slang.c,v 1.9 2017/10/14 00:57:34 tom Exp $
+ * $Id: view_slang.c,v 1.12 2017/11/01 09:25:42 tom Exp $
  *
  * This is adapted from slang's demo pager,
  * to make it behave like ncurses's view demo.
+ *
+ * TODO: show line-numbers on left
+ * TODO: make line-numbers not scroll left/right.
+ * TODO: handle option like ncurses showing current time
+ * TODO: handle option for white-on-blue
+ * TODO: handle SIGWINCH
  */
 
 #include <string.h>
@@ -11,12 +17,15 @@
 #include <unistd.h>
 
 #include <slang.h>
+#include <slcurses.h>
 
 #ifdef __GNUC__
-static void
-finish(int)
-__attribute__((noreturn));
+#define GCC_NORETURN __attribute__((noreturn))
+#else
+#define GCC_NORETURN		/* nothing */
 #endif
+
+static void finish(int) GCC_NORETURN;
 
 static void
 finish(int sig)
@@ -29,6 +38,98 @@ finish(int sig)
 	exit(EXIT_FAILURE);
     }
     exit(EXIT_SUCCESS);
+}
+
+/* MISSING */
+static const char *
+unctrl(int c)
+{
+    static char table[256][6];
+    char *result = 0;
+    if (c >= 0 && c < 256) {
+	result = &table[c][0];
+	if (*result == 0) {
+	    char *s = result;
+	    if (c >= 128) {
+		*s++ = 'M';
+		*s++ = '-';
+		c -= 128;
+	    }
+	    if (c < 32)
+		sprintf(s, "^%c", c | '@');
+	    else if (c < 127)
+		sprintf(s, "%c", c);
+	    else
+		sprintf(s, "^?");
+	}
+    }
+    return (const char *) result;
+}
+
+/* MISSING */
+/*
+ * These could be supplied by the slang library, but are here just for the
+ * ncurses-examples which use these symbols.
+ */
+#define KEY_BTAB	0x114
+#define KEY_PREVIOUS	0x115
+#define KEY_NEXT	0x116
+#define KEY_IC	SL_KEY_IC
+#define KEY_DC	SL_KEY_DELETE
+
+static const char *
+keyname(int c)
+{
+#define SL_KEYNAMES(name) { name, #name }
+    static struct {
+	int code;
+	const char *name;
+    } table[] = {
+	SL_KEYNAMES(KEY_DOWN),
+	    SL_KEYNAMES(KEY_UP),
+	    SL_KEYNAMES(KEY_LEFT),
+	    SL_KEYNAMES(KEY_RIGHT),
+	    SL_KEYNAMES(KEY_A1),
+	    SL_KEYNAMES(KEY_C1),
+	    SL_KEYNAMES(KEY_B2),
+	    SL_KEYNAMES(KEY_A3),
+	    SL_KEYNAMES(KEY_C3),
+	    SL_KEYNAMES(KEY_REDO),
+	    SL_KEYNAMES(KEY_UNDO),
+	    SL_KEYNAMES(KEY_BACKSPACE),
+	    SL_KEYNAMES(KEY_PPAGE),
+	    SL_KEYNAMES(KEY_NPAGE),
+	    SL_KEYNAMES(KEY_HOME),
+	    SL_KEYNAMES(KEY_END),
+	    SL_KEYNAMES(KEY_ENTER),
+	    SL_KEYNAMES(KEY_IC),
+	    SL_KEYNAMES(KEY_DC),
+	/* not in SLcurses */
+	    SL_KEYNAMES(KEY_BTAB),
+	    SL_KEYNAMES(KEY_PREVIOUS),
+	    SL_KEYNAMES(KEY_NEXT),
+	{
+	    0, 0
+	}
+    };
+#undef SL_KEYNAMES
+    const char *result = 0;
+    if (c < 256) {
+	result = unctrl(c);
+    } else if (c < KEY_F0) {
+	int n;
+	for (n = 0; table[n].code; ++n) {
+	    if (table[n].code == c) {
+		result = table[n].name;
+		break;
+	    }
+	}
+    } else if (c < KEY_F0 + 60) {
+	static char dummy[20];
+	sprintf(dummy, "KEY_F%d", c - KEY_F0);
+	result = dummy;
+    }
+    return result;
 }
 
 static void
@@ -162,13 +263,33 @@ ReadFile(char *filename)
     Line_Window.lines = (SLscroll_Type *) result;
     Line_Window.line_num = 1;
     Line_Window.num_lines = num_lines;
-    /* Line_Window.border = 3; */
 
     return result;
 }
 
 static void
-update_display(const char *filename)
+update_header(const char *filename, int key)
+{
+    int start_col = 0;
+
+    SLsig_block_signals();
+
+    SLsmg_set_screen_start(NULL, &start_col);
+
+    SLsmg_gotorc(0, 0);
+    SLsmg_reverse_video();
+    SLsmg_printf("view %s %s",
+		 (key > 0) ? keyname(key) : "",
+		 (filename == NULL) ? "<stdin>" : filename);
+    SLsmg_erase_eol();
+
+    SLsmg_refresh();
+
+    SLsig_unblock_signals();
+}
+
+static void
+update_display(int start_col)
 {
     int row;
     MyData *line;
@@ -178,6 +299,8 @@ update_display(const char *filename)
      */
     SLsig_block_signals();
 
+    SLsmg_set_screen_start(NULL, &start_col);
+
     Line_Window.nrows = (unsigned) (SLtt_Screen_Rows - 1);
 
     /* Always make the current line equal to the top window line. */
@@ -186,12 +309,12 @@ update_display(const char *filename)
 
     SLscroll_find_top(&Line_Window);
 
-    row = 0;
+    row = 1;
     line = (MyData *) Line_Window.top_window_line;
 
     SLsmg_normal_video();
 
-    while (row < (int) Line_Window.nrows) {
+    while (row <= (int) Line_Window.nrows) {
 	SLsmg_gotorc(row, 0);
 
 	if (line != NULL) {
@@ -202,12 +325,6 @@ update_display(const char *filename)
 	row++;
     }
 
-    SLsmg_gotorc(row, 0);
-    SLsmg_reverse_video();
-    SLsmg_printf("%s | UTF-8 = %d",
-		 (filename == NULL) ? "<stdin>" : filename,
-		 SLutf8_is_utf8_mode());
-    SLsmg_erase_eol();
     SLsmg_refresh();
 
     SLsig_unblock_signals();
@@ -219,10 +336,12 @@ main_loop(const char *filename)
     int Screen_Start = 0;
     int screen_start;
     int done = 0;
+    int last_key = -1;
 
     while (!done) {
-	update_display(filename);
-	switch (SLkp_getkey()) {
+	update_header(filename, last_key);
+	update_display(Screen_Start);
+	switch (last_key = SLkp_getkey()) {
 	case SL_KEY_ERR:
 	case 'q':
 	case 'Q':
