@@ -1,19 +1,14 @@
 /*
- * $Id: view_slang.c,v 1.12 2017/11/01 09:25:42 tom Exp $
+ * $Id: view_slang.c,v 1.18 2017/11/02 19:28:42 tom Exp $
  *
  * This is adapted from slang's demo pager,
  * to make it behave like ncurses's view demo.
- *
- * TODO: show line-numbers on left
- * TODO: make line-numbers not scroll left/right.
- * TODO: handle option like ncurses showing current time
- * TODO: handle option for white-on-blue
- * TODO: handle SIGWINCH
  */
 
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <time.h>
 #include <unistd.h>
 
 #include <slang.h>
@@ -270,6 +265,7 @@ ReadFile(char *filename)
 static void
 update_header(const char *filename, int key)
 {
+    time_t now = time((time_t *) 0);
     int start_col = 0;
 
     SLsig_block_signals();
@@ -277,21 +273,55 @@ update_header(const char *filename, int key)
     SLsmg_set_screen_start(NULL, &start_col);
 
     SLsmg_gotorc(0, 0);
-    SLsmg_reverse_video();
+    /*
+     * FIXME:
+     * The pager.c demo has this call, which is misleading:
+     *     SLsmg_reverse_video();
+     * Rather than reverse-video, slang chooses to use the cyan color.
+     * Like many of the screen management functions, this is undocumented.
+     */
     SLsmg_printf("view %s %s",
 		 (key > 0) ? keyname(key) : "",
 		 (filename == NULL) ? "<stdin>" : filename);
     SLsmg_erase_eol();
+    SLsmg_gotorc(0, SLtt_Screen_Cols - 24);
+    SLsmg_printf("%s", ctime(&now));
 
     SLsmg_refresh();
 
     SLsig_unblock_signals();
 }
 
+static int
+get_lineno(MyData * list, MyData * find)
+{
+    MyData *item = list;
+    int result = 0;
+    if (item != 0) {
+	do {
+	    ++result;
+	    if (item == find)
+		break;
+	    item = item->next;
+	} while ((item != 0) && (item != list));
+    }
+    return result;
+}
+
 static void
-update_display(int start_col)
+update_display(MyData * data, int start_col, int final_row, int no_number)
 {
     int row;
+    int param_col = start_col;
+    int digit_col;
+    int start_row;
+    int digits = no_number ? -1 : 7;
+    /*
+     * FIXME:
+     * SLscroll uses the whole-screen for tabs, has no way to expand
+     * tabs except by referring to column-0, unlike ncurses.  So the number
+     * of digits is chosen to make its tab-expansion work.
+     */
     MyData *line;
 
     /* All well behaved applications should block signals that may affect
@@ -311,11 +341,15 @@ update_display(int start_col)
 
     row = 1;
     line = (MyData *) Line_Window.top_window_line;
+    start_row = get_lineno(data, line);
 
     SLsmg_normal_video();
 
+    start_col = param_col;
+    SLsmg_set_screen_start(NULL, &start_col);
+
     while (row <= (int) Line_Window.nrows) {
-	SLsmg_gotorc(row, 0);
+	SLsmg_gotorc(row, digits + 1);
 
 	if (line != NULL) {
 	    SLsmg_write_string(line->data);
@@ -325,27 +359,70 @@ update_display(int start_col)
 	row++;
     }
 
+    if (!no_number) {
+	digit_col = 0;
+	SLsmg_set_screen_start(NULL, &digit_col);
+
+	for (row = 1; row <= (int) Line_Window.nrows; ++row) {
+	    SLsmg_gotorc(row, 0);
+	    if (row + start_row - 1 > final_row) {
+		SLsmg_erase_eos();
+		SLsmg_gotorc(row - 1, param_col + digits + 1);
+		break;
+	    }
+	    SLsmg_printf("%*d:", digits, row + start_row - 1);
+	}
+
+	start_col = param_col;
+	SLsmg_set_screen_start(NULL, &start_col);
+	SLsmg_gotorc(row - 1, param_col + digits + 1);
+    }
     SLsmg_refresh();
 
     SLsig_unblock_signals();
 }
 
+/*
+ * FIXME:
+ * documentation for the SIGWINCH handler omits the "void" needed to compile.
+ */
+static volatile int Screen_Size_Changed;
 static void
-main_loop(const char *filename)
+sigwinch_handler(int sig)
+{
+    Screen_Size_Changed = sig;
+    SLsignal(SIGWINCH, sigwinch_handler);
+}
+
+static void
+main_loop(MyData * data, const char *filename, int single_step, int no_number)
 {
     int Screen_Start = 0;
     int screen_start;
+    int screen_final = get_lineno(data, data->prev);
     int done = 0;
     int last_key = -1;
 
+    SLsignal(SIGWINCH, sigwinch_handler);
     while (!done) {
+	if (Screen_Size_Changed) {
+	    Screen_Size_Changed = 0;
+	    SLtt_get_screen_size();
+	    SLsmg_reinit_smg();
+	}
 	update_header(filename, last_key);
-	update_display(Screen_Start);
+	update_display(data, Screen_Start, screen_final, no_number);
+	if (!single_step && !SLang_input_pending(-50))
+	    continue;
 	switch (last_key = SLkp_getkey()) {
 	case SL_KEY_ERR:
 	case 'q':
 	case 'Q':
 	    done = 1;
+	    break;
+
+	case 's':
+	    single_step = 1;
 	    break;
 
 	case 'r':
@@ -377,8 +454,13 @@ main_loop(const char *filename)
 	    Line_Window.top_window_line = Line_Window.current_line;
 	    break;
 
-	case SL_KEY_NPAGE:
 	case ' ':
+	    if (single_step) {
+		single_step = 0;
+		break;
+	    }
+	    /* FALLTHRU */
+	case SL_KEY_NPAGE:
 	case 4:
 	    SLscroll_pagedown(&Line_Window);
 	    break;
@@ -406,7 +488,7 @@ main_loop(const char *filename)
 static void
 usage(char *pgm)
 {
-    fprintf(stderr, "Usage: %s [-c] [-i] [FILENAME]\n", pgm);
+    fprintf(stderr, "Usage: %s [-c] [-i] [-n] [-s] [FILENAME]\n", pgm);
     exit(EXIT_FAILURE);
 }
 
@@ -416,16 +498,31 @@ main(int argc, char **argv)
     int i;
     int try_color = 0;
     int ignore_sigs = 0;
+    int single_step = 0;
+    int no_numbers = 0;
     char *filename = NULL;
     MyData *my_data;
 
-    while ((i = getopt(argc, argv, "ci")) != -1) {
+    while ((i = getopt(argc, argv, "cins")) != -1) {
 	switch (i) {
 	case 'c':
 	    try_color = 1;
 	    break;
 	case 'i':
 	    ignore_sigs = 1;
+	    break;
+	case 'n':
+	    /*
+	     * FIXME:
+	     * SLscroll puts a '<' at the left margin when not able to show
+	     * a double-cell character.  But that only works for column-0.
+	     * If you display line-numbers (as in ncurses), that doesn't
+	     * work.  This option is used to show the feature.
+	     */
+	    no_numbers = 1;
+	    break;
+	case 's':
+	    single_step = 1;
 	    break;
 	default:
 	    usage(argv[0]);
@@ -450,6 +547,8 @@ main(int argc, char **argv)
 	return EXIT_FAILURE;
     }
 
-    main_loop(filename);
+    if (try_color)
+	SLtt_set_color(0, NULL, "white", "blue");
+    main_loop(my_data, filename, single_step, no_numbers);
     finish(0);
 }

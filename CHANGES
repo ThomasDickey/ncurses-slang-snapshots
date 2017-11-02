@@ -1,3 +1,17 @@
+2017-11-02  Thomas E. Dickey  <dickey@invisible-island.net>
+
+	* view_slang.c: handle SIGWINCH
+
+	* view_slang.c: implement "-c" option, like ncurses
+
+	* view_slang.c:
+	comment-out bogus "reverse-video" call from pager.c which colors the
+	text "cyan".
+
+	* view_slang.c:
+	add a "-n" option to suppress line-numbers to demonstrate a limitation
+	of slang's handling of double-cell characters.
+
 2017-11-01  Thomas E. Dickey  <dickey@invisible-island.net>
 
 	* view_slang.c:
