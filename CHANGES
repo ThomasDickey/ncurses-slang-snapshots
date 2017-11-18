@@ -1,4 +1,51 @@
-2017-11-02  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-11-17  dickey@invisible-island.net
+
+	* picsmap_slang2.c: RCS_BASE
+
+	* makefile:
+	add picsmap_slang2, along with temporary tie-in to build-tree for slang
+
+	* picsmap_slang.c:
+	work around slang's problems reading ncurses 6.1's "xterm-256color" entry.
+
+2017-11-16  dickey@invisible-island.net
+
+	* picsmap_slang.c:
+	slang's interface for colors does not appear to work with -1's, and trying
+	to do that triggers some code in the 24bit configuration that paints the
+	screen white.  Just use black where picsmap would use default-colors.
+
+	* picsmap_slang.c:
+	add workaround to run with TERM=xterm-direct (colors aren't right, though)
+
+2017-11-15  dickey@invisible-island.net
+
+	* picsmap_slang.c:
+	check for TERM=xterm-direct, which slang won't handle, and tell slang that
+	it's really "24bit"
+
+	* picsmap_slang.c: clear the entire background, not just the picture
+
+	* picsmap_slang.c, cfg-slcurses, makefile, view_slcurses.c, test.priv.h, view_slang.c:
+	copyright
+
+2017-11-14  dickey@invisible-island.net
+
+	* picsmap_slang.c: treat color-pairs as slang color-objects
+
+	* picsmap_slang.c: add param to init_display for palette-path
+
+	* picsmap_slang.c: start reworking the curses version of show_picture
+
+	* picsmap_slang.c, test.priv.h: adapt initialization from view_slang
+
+2017-11-13  dickey@invisible-island.net
+
+	* picsmap_slang.c, test.priv.h: RCS_BASE
+
+	* makefile: add rule for picsmap_slang
+
+2017-11-02  dickey@invisible-island.net
 
 	* view_slang.c: handle SIGWINCH
 
@@ -12,7 +59,7 @@
 	add a "-n" option to suppress line-numbers to demonstrate a limitation
 	of slang's handling of double-cell characters.
 
-2017-11-01  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-11-01  dickey@invisible-island.net
 
 	* view_slang.c:
 	implement -s option like ncurses, along with clock in header.
@@ -28,15 +75,15 @@
 	split-out update_header, make the header not scroll left/right like the
 	file contents
 
-2017-10-31  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-10-31  dickey@invisible-island.net
 
 	* view_slang.c: move title to first line, like ncurses
 
-2017-10-16  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-10-16  dickey@invisible-island.net
 
 	* with-slcurses: tie-in to discussion
 
-2017-10-13  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-10-13  dickey@invisible-island.net
 
 	* view_slang.c: add cases for compat with ncurses
 
@@ -65,15 +112,15 @@
 
 	* makefile: add -W option
 
-2017-10-12  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-10-12  dickey@invisible-island.net
 
 	* view_slcursesw.c: adapt ch_dup from ncurses view.c
 
-2017-09-17  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-09-17  dickey@invisible-island.net
 
 	* with-slcurses: tweak per Debian #51176
 
-2017-09-16  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-09-16  dickey@invisible-island.net
 
 	* with-slcurses: fixup for waddnstr
 
@@ -81,7 +128,7 @@
 
 	* with-slcurses: add workaround for wmove
 
-2017-09-15  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-09-15  dickey@invisible-island.net
 
 	* with-slcurses: fix case where addch was used, but waddch needed
 
@@ -89,11 +136,11 @@
 	ignore slang's prototypes where I get compiler warnings that SLFUTURE_CONST
 	should have fixed.  Start fixes for "-1" parameter to winchnstr, etc.
 
-2017-09-13  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-09-13  dickey@invisible-island.net
 
 	* with-slcurses: errata with inline
 
-2017-09-06  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-09-06  dickey@invisible-island.net
 
 	* with-slcurses: better copywin, but doesn't work properly yet.
 
@@ -107,7 +154,7 @@
 	redraw to "work", while none of the other programs which use newterm are
 	broken.
 
-2017-09-05  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-09-05  dickey@invisible-island.net
 
 	* with-slcurses: debugged wgetnstr, making wscanw work.
 
@@ -121,7 +168,7 @@
 		JTC1/SC22/WG14 N701
 		May 22, 1997
 
-2017-09-04  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-09-04  dickey@invisible-island.net
 
 	* with-slcurses: make unctrl/keyname act as in ncurses for 128-255
 
@@ -160,7 +207,7 @@
 
 	* with-slcurses: add scanw, etc.
 
-2017-09-03  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-09-03  dickey@invisible-island.net
 
 	* with-slcurses: add winnstr
 
@@ -178,7 +225,7 @@
 	work around multiple-definition problem when combining object-files using
 	this header by using MODULE_NAME to prefix the inline function-names.
 
-2017-09-02  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-09-02  dickey@invisible-island.net
 
 	* with-slcurses:
 	work around a bug in curs_set: slang does not flush output.
@@ -218,7 +265,7 @@
 
 	* with-slcurses: filter out the actual name of the temp-directory
 
-2017-08-20  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-08-20  dickey@invisible-island.net
 
 	* cfg-slcurses: RCS_BASE
 
@@ -227,7 +274,7 @@
 
 	* with-slcurses: RCS_BASE
 
-2017-04-25  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-04-25  dickey@invisible-island.net
 
 	* view_slcursesw.c: repeat the point
 
@@ -243,7 +290,7 @@
 	do background color via the other interfaces, and even still insists there
 	are 16 colors.
 
-2017-03-22  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-03-22  dickey@invisible-island.net
 
 	* makefile: add view_slang
 
@@ -251,7 +298,7 @@
 
 	* view_slcurses.c: remove some unused stuff
 
-2017-03-21  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-03-21  dickey@invisible-island.net
 
 	* view_slcurses.c: no setscrreg - works with ASCII example now
 
@@ -272,7 +319,7 @@
 	* view_slcurses.c: slang has no idlok - harmless
 	slang has no keyname - make quick hack
 
-2017-03-20  Thomas E. Dickey  <dickey@invisible-island.net>
+2017-03-20  dickey@invisible-island.net
 
 	* view_slcurses.c:
 	clear away the stuff that slang won't ever do, leaving a skeleton that might
@@ -284,7 +331,7 @@
 
 	* makefile, view_slcurses.c: RCS_BASE
 
-2014-08-09  Thomas E. Dickey  <dickey@invisible-island.net>
+2014-08-09  dickey@invisible-island.net
 
 	* dots_slcurses.c: RCS_BASE
 
