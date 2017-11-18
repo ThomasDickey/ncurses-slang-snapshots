@@ -1,4 +1,5 @@
 /****************************************************************************
+ * Copyright 2017 by Thomas E. Dickey                                       *
  * Copyright (c) 1998-2015,2016 Free Software Foundation, Inc.              *
  *                                                                          *
  * Permission is hereby granted, free of charge, to any person obtaining a  *
@@ -8,6 +9,11 @@
  * distribute, distribute with modifications, sublicense, and/or sell       *
  * copies of the Software, and to permit persons to whom the Software is    *
  * furnished to do so, subject to the following conditions:                 *
+ *                                                                          *
+ * This is a supporting work for discussion of the ncurses and slang        *
+ * libraries, consequently the permission notice requires this URL to be    *
+ * included:                                                                *
+ *      https://invisible-island.net/ncurses/ncurses-slang.html             *
  *                                                                          *
  * The above copyright notice and this permission notice shall be included  *
  * in all copies or substantial portions of the Software.                   *
@@ -50,7 +56,7 @@
  * scroll operation worked, and the refresh() code only had to do a
  * partial repaint.
  *
- * $Id: view_slcurses.c,v 1.11 2017/03/22 21:09:48 tom Exp $
+ * $Id: view_slcurses.c,v 1.12 2017/11/15 23:15:49 tom Exp $
  */
 
 #include <slcurses.h>
@@ -64,6 +70,12 @@
 #include <locale.h>
 
 #include <time.h>
+
+#ifdef __GNUC__
+#define GCC_NORETURN __attribute__((noreturn))
+#else
+#define GCC_NORETURN		/* nothing */
+#endif
 
 #define CCHAR_T SLcurses_Cell_Type
 
@@ -159,7 +171,7 @@ static void
 redrawwin(WINDOW *w)
 {
     /* the touchwin() macro introduces a compiler warning, fixed here */
-    SLsmg_touch_lines((int)(w)->_begy, (w)->nrows);
+    SLsmg_touch_lines((int) (w)->_begy, (w)->nrows);
     wrefresh(w);
 }
 
@@ -204,11 +216,7 @@ ch_dup(char *src)
     return dst;
 }
 
-#ifdef __GNUC__
-static void
-finish(int)
-__attribute__((noreturn));
-#endif
+static void finish(int) GCC_NORETURN;
 
 static void
 finish(int sig)
