@@ -30,22 +30,26 @@
 # use or other dealings in this Software without prior written               #
 # authorization.                                                             #
 ##############################################################################
-# $Id: makefile,v 1.7 2017/11/15 23:25:31 tom Exp $
+# $Id: makefile,v 1.8 2017/11/18 00:43:32 tom Exp $
+
+Z=/usr/build/slang/slang-2.3.1a/src
 
 PROGS	= \
 	dots_slcurses \
 	picsmap_slang \
+	picsmap_slang2 \
 	view_slang \
 	view_slcurses \
 	view_slcursesw
 
 CC	= gcc-normal -W
-CPPFLAGS= -I.
+CPPFLAGS= -I. -I$Z
 
+LDFLAGS	= -Wl,-rpath,$Z/elfobjs
 LIBS	= -lslang -lm
 
 .c:
-	$(CC) -o $@ $(CPPFLAGS) $< $(LIBS)
+	$(CC) -o $@ $(CPPFLAGS) $< $(LIBS) $(LDFLAGS)
 
 all: $(PROGS)
 
