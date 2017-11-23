@@ -31,7 +31,7 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: test.priv.h,v 1.3 2017/11/15 23:11:54 tom Exp $
+ * $Id: test.priv.h,v 1.4 2017/11/23 19:40:34 tom Exp $
  * Use this to compile picsmap.c as a header-file for picsmap_slang
  */
 
@@ -102,8 +102,9 @@ typedef unsigned chtype;
 #define SIZEOF(n) (sizeof(n)/sizeof(n[0]))
 #define ExitProgram(code) exit(code)
 
-#define USE_TERM_DRIVER 1
+#define USE_DISPLAY_DRIVER 1
 
+#define HAVE_USE_DEFAULT_COLORS 1
 #define HAVE_STDINT_H   1
 #define HAVE_TSEARCH    1
 //#define HAVE_TDESTROY   1

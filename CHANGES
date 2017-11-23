@@ -1,3 +1,12 @@
+2017-11-23  dickey@invisible-island.net
+
+	* picsmap_slang.c: updated to use "-d" option
+
+	* picsmap_slang2.c: updated to use "-d" command-line option
+
+	* test.priv.h: updated to current ifdef used for display-driver
+	also, pretend that slang has an API for default colors
+
 2017-11-17  dickey@invisible-island.net
 
 	* picsmap_slang2.c: RCS_BASE

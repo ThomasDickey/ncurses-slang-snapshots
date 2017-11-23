@@ -31,13 +31,15 @@
  * authorization.                                                           *
  ****************************************************************************/
 /*
- * $Id: picsmap_slang.c,v 1.11 2017/11/17 10:16:47 tom Exp $
+ * $Id: picsmap_slang.c,v 1.12 2017/11/23 20:21:42 tom Exp $
  */
 
 #define COLORS	SLtt_Use_Ansi_Colors
 #define endwin() done_display()
 
 #include <picsmap.h>
+
+static int save_d_opt;
 
 static void
 done_display(void)
@@ -58,7 +60,7 @@ exit_error_hook(char *fmt, va_list ap)
 }
 
 void
-init_display(const char *palette_path)
+init_display(const char *palette_path, int d_option)
 {
     if (isatty(fileno(stdout))) {
 	const char *env = getenv("TERM");
@@ -66,9 +68,11 @@ init_display(const char *palette_path)
 	int colors;
 	char chr;
 
+	save_d_opt = d_option;
 	if (!strcmp(env, "xterm-direct")) {
 	    putenv("COLORTERM=24bit");
-	    putenv("COLORTERM_BCE=1");
+	    if (d_option)
+		putenv("COLORTERM_BCE=1");
 	    fake = 1;
 	}
 
@@ -127,7 +131,7 @@ show_picture(PICS_HEAD * pics)
 	for (n = 0; n < pics->colors; ++n) {
 	    my_pair = (SLsmg_Color_Type) (n + 1);
 	    my_color = (SLtt_Char_Type) map_color(fg_color(pics, n));
-	    /* slang does not support default-colors with its 24-bit code */
+	    /* slang does not support default-colors with this interface */
 	    if ((long) my_color < 0) {
 		my_color = 0;
 	    }
